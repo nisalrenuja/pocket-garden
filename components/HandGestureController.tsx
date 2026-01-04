@@ -7,24 +7,25 @@ import {
   DrawingUtils,
 } from "@mediapipe/tasks-vision";
 
-export type GestureAction = "ROTATE" | "WATER" | "TOGGLE_THEME" | "ZOOM" | "NONE";
-
-interface HandGestureControllerProps {
-  onGesture: (action: GestureAction, value?: number) => void;
+export interface HandFrame {
+  x: number;      // 0..1 (Screen X, 0=Left)
+  y: number;      // 0..1 (Screen Y, 0=Top)
+  roll: number;   // -1..1 (Hand Tilt, negative=left)
+  pinch: boolean; // True if thumb+index touching
+  fist: boolean;  // True if fingers folded
+  peace: boolean; // True if Index+Middle extended, others folded
 }
 
-export default function HandGestureController({ onGesture }: HandGestureControllerProps) {
+interface HandGestureControllerProps {
+  onHandFrame: (frame: HandFrame) => void;
+}
+
+export default function HandGestureController({ onHandFrame }: HandGestureControllerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const requestRef = useRef<number>(0);
   const handLandmarkerRef = useRef<HandLandmarker | null>(null);
-
-  // Gesture State
-  const lastYRef = useRef<number>(0);
-  const isFistRef = useRef<boolean>(false);
-  const fistTriggeredRef = useRef<boolean>(false);
-  const pinchDistanceRef = useRef<number | null>(null);
 
   useEffect(() => {
     let handLandmarker: HandLandmarker;
@@ -81,10 +82,17 @@ export default function HandGestureController({ onGesture }: HandGestureControll
 
     const canvasCtx = canvasRef.current.getContext("2d");
     if (canvasCtx) {
-      canvasCtx.font = "24px serif";
+      canvasCtx.font = "16px monospace";
       canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       
       const drawingUtils = new DrawingUtils(canvasCtx);
+      
+      // Default empty frame (hands off)
+      // When no hand, we might want to signal that, but for now let's just not emit or emit a "neutral" state?
+      // Emitting neutral is safer for "stop rotation".
+      // But if we stop emitting, the last state persists.
+      // Let's emit a "neutral" frame if no hand, OR just don't call callback.
+      // Better to not call, let parent handle timeout if needed, or handle "no interaction".
       
       if (results.landmarks && results.landmarks.length > 0) {
         const landmarks = results.landmarks[0];
@@ -96,93 +104,73 @@ export default function HandGestureController({ onGesture }: HandGestureControll
         });
         drawingUtils.drawLandmarks(landmarks, { color: "#FF0000", lineWidth: 1 });
 
-        // --- GESTURE RECOGNITION ---
-        
-        // 1. ROTATION (X Position of Wrist)
-        // Wrist is index 0. 
-        // Normalized x: 0 is left, 1 is right. Center is 0.5.
-        // Screen is mirrored.
-        const wristX = landmarks[0].x;
-        const centerX = 0.5;
-        let rotationVal = 0;
-        
-        // Add Deadzone (10% center)
-        if (Math.abs(wristX - centerX) > 0.1) {
-             // Map remaining range to speed
-             rotationVal = (centerX - wristX) * 4; 
-        }
-        onGesture("ROTATE", rotationVal);
-
-
-        // 2. DETECT OPEN vs FIST (Day/Night)
+        // --- EXTRACT HAND STATE ---
         const wrist = landmarks[0];
-        const tips = [landmarks[8], landmarks[12], landmarks[16], landmarks[20]]; // Exclude thumb for fist
-        const pips = [landmarks[6], landmarks[10], landmarks[14], landmarks[18]];
-        
-        let fingersFolded = true;
-        for (let i = 0; i < tips.length; i++) {
-           // If tip is further from wrist than PIP, it's open-ish
-           const dTip = Math.hypot(tips[i].x - wrist.x, tips[i].y - wrist.y);
-           const dPip = Math.hypot(pips[i].x - wrist.x, pips[i].y - wrist.y);
-           if (dTip > dPip * 1.2) { // Tolerance
-               fingersFolded = false;
-               break;
-           }
-        }
-
-        if (fingersFolded) {
-             if (!isFistRef.current) {
-                 isFistRef.current = true;
-                 // Debounce/Latch logic for toggle
-                 if (!fistTriggeredRef.current) {
-                     onGesture("TOGGLE_THEME");
-                     fistTriggeredRef.current = true;
-                     
-                     // Visual Feedback
-                     canvasCtx.fillStyle = "blue";
-                     canvasCtx.fillText("FIST: Toggle", 10, 30);
-                 }
-             }
-        } else {
-             isFistRef.current = false;
-             fistTriggeredRef.current = false; // Reset trigger so we can toggle again
-        }
-
-
-        // 3. WATERING (Hold Hand High)
-        // If hand is OPEN and in UPPER PART of screen
-        if (!fingersFolded) {
-             const wristY = landmarks[0].y; // 0 is top, 1 is bottom
-             
-             // Water if hand is in top 30% of view
-             if (wristY < 0.3) { 
-                onGesture("WATER", 0.02); // Constant water flow
-                canvasCtx.fillStyle = "cyan";
-                canvasCtx.fillText("HIGH: Water", 10, 60);
-             }
-        }
-
-
-        // 4. ZOOM (Pinch)
-        // Distance between Thumb Tip (4) and Index Tip (8)
         const thumbTip = landmarks[4];
         const indexTip = landmarks[8];
-        const distance = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+        const middleTip = landmarks[12];
+        const ringTip = landmarks[16];
+        const pinkyTip = landmarks[20];
         
-        // Zoom In (Tight Pinch)
-        if (distance < 0.05) {
-            onGesture("ZOOM", 0.1); 
-            canvasCtx.fillStyle = "yellow";
-            canvasCtx.fillText("PINCH: Zoom In", 10, 90);
-        } 
-        // Zoom Out (Wide Spread - if thumb and index are far apart?)
-        // Let's use > 0.15 as "Spread"
-        else if (distance > 0.15) {
-             onGesture("ZOOM", -0.1);
-             canvasCtx.fillStyle = "orange";
-             canvasCtx.fillText("SPREAD: Zoom Out", 10, 90);
-        }
+        // 1. Position (0..1)
+        const x = wrist.x;
+        const y = wrist.y;
 
+        // 2. Roll (Tilt)
+        // Calculate based on Index vs Pinky MCP Y difference
+        const indexMCP = landmarks[5];
+        const pinkyMCP = landmarks[17];
+        const dx = pinkyMCP.x - indexMCP.x;
+        const dy = pinkyMCP.y - indexMCP.y;
+        let rollVal = Math.atan2(dy, dx);
+        rollVal = Math.max(-1, Math.min(1, rollVal * 2));
+        
+        // Helper: Is Finger Extended? (Tip further from wrist than PIP)
+        // Using PIP (Joint 6, 10, 14, 18) for comparison
+        const isExtended = (tip: any, pip: any) => {
+             const dTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+             const dPip = Math.hypot(pip.x - wrist.x, pip.y - wrist.y);
+             return dTip > dPip * 1.2;
+        };
+        
+        const indexExt = isExtended(indexTip, landmarks[6]);
+        const middleExt = isExtended(middleTip, landmarks[10]);
+        const ringExt = isExtended(ringTip, landmarks[14]);
+        const pinkyExt = isExtended(pinkyTip, landmarks[18]);
+
+        // 3. Pinch (Thumb + Index close)
+        const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+        const pinch = pinchDist < 0.05;
+
+        // 4. Fist (All 4 fingers curled)
+        // Note: isExtended checks if OPEN. So !isExtended means curled.
+        const fist = !indexExt && !middleExt && !ringExt && !pinkyExt;
+
+        // 5. Peace (Index + Middle Extended, others curled)
+        // We typically ignore thumb for peace sign, or check it's not interfering.
+        // Let's just strictly check fingers.
+        const peace = indexExt && middleExt && !ringExt && !pinkyExt; 
+        
+        // Emit Frame
+        onHandFrame({
+            x,
+            y,
+            roll: rollVal,
+            pinch,
+            fist,
+            peace
+        });
+
+        // Debug Visuals
+        canvasCtx.fillStyle = "cyan";
+        canvasCtx.fillText(`Roll: ${rollVal.toFixed(2)}`, 10, 20);
+        canvasCtx.fillText(`Pinch: ${pinch}`, 10, 40);
+        canvasCtx.fillText(`Fist: ${fist}`, 10, 60);
+        canvasCtx.fillText(`Peace: ${peace}`, 10, 80);
+
+      } else {
+        // Optional: Emit specific "No Hand" frame if needed to stop momentum instantly
+        // onHandFrame({ x:0.5, y:0.5, roll:0, pinch:false, fist:false });
       }
     }
 
