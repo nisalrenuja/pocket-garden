@@ -6,15 +6,20 @@ import {
   FilesetResolver,
   DrawingUtils,
 } from "@mediapipe/tasks-vision";
-
-export interface HandFrame {
-  x: number;      // 0..1 (Screen X, 0=Left)
-  y: number;      // 0..1 (Screen Y, 0=Top)
-  roll: number;   // -1..1 (Hand Tilt, negative=left)
-  pinch: boolean; // True if thumb+index touching
-  fist: boolean;  // True if fingers folded
-  peace: boolean; // True if Index+Middle extended, others folded
-}
+import { HandFrame, Landmark } from "@/types";
+import {
+  MEDIAPIPE_CONFIG,
+  HAND_LANDMARK_INDICES,
+  VIDEO_CONFIG,
+  DRAWING_STYLES,
+} from "@/constants";
+import {
+  calculateRoll,
+  isFingerExtended,
+  detectPinch,
+  detectFist,
+  detectPeace,
+} from "@/lib/mediapipe";
 
 interface HandGestureControllerProps {
   onHandFrame: (frame: HandFrame) => void;
@@ -32,16 +37,15 @@ export default function HandGestureController({ onHandFrame }: HandGestureContro
 
     const createHandLandmarker = async () => {
       const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+        MEDIAPIPE_CONFIG.VISION_TASKS_CDN
       );
       handLandmarker = await HandLandmarker.createFromOptions(vision, {
         baseOptions: {
-          modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-          delegate: "GPU",
+          modelAssetPath: MEDIAPIPE_CONFIG.MODEL_URL,
+          delegate: MEDIAPIPE_CONFIG.DELEGATE,
         },
-        runningMode: "VIDEO",
-        numHands: 1,
+        runningMode: MEDIAPIPE_CONFIG.RUNNING_MODE,
+        numHands: MEDIAPIPE_CONFIG.NUM_HANDS,
       });
       handLandmarkerRef.current = handLandmarker;
       setIsLoaded(true);
@@ -76,101 +80,70 @@ export default function HandGestureController({ onHandFrame }: HandGestureContro
 
   const predictWebcam = () => {
     if (!handLandmarkerRef.current || !videoRef.current || !canvasRef.current) return;
-    
+
     const startTimeMs = performance.now();
     const results = handLandmarkerRef.current.detectForVideo(videoRef.current, startTimeMs);
 
     const canvasCtx = canvasRef.current.getContext("2d");
     if (canvasCtx) {
-      canvasCtx.font = "16px monospace";
+      canvasCtx.font = VIDEO_CONFIG.FONT;
       canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      
+
       const drawingUtils = new DrawingUtils(canvasCtx);
-      
-      // Default empty frame (hands off)
-      // When no hand, we might want to signal that, but for now let's just not emit or emit a "neutral" state?
-      // Emitting neutral is safer for "stop rotation".
-      // But if we stop emitting, the last state persists.
-      // Let's emit a "neutral" frame if no hand, OR just don't call callback.
-      // Better to not call, let parent handle timeout if needed, or handle "no interaction".
-      
+
       if (results.landmarks && results.landmarks.length > 0) {
         const landmarks = results.landmarks[0];
-        
+
         // Draw landmarks
         drawingUtils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, {
-          color: "#00FF00",
-          lineWidth: 2,
+          color: DRAWING_STYLES.CONNECTOR_COLOR,
+          lineWidth: DRAWING_STYLES.CONNECTOR_WIDTH,
         });
-        drawingUtils.drawLandmarks(landmarks, { color: "#FF0000", lineWidth: 1 });
+        drawingUtils.drawLandmarks(landmarks, {
+          color: DRAWING_STYLES.LANDMARK_COLOR,
+          lineWidth: DRAWING_STYLES.LANDMARK_WIDTH,
+        });
 
-        // --- EXTRACT HAND STATE ---
-        const wrist = landmarks[0];
-        const thumbTip = landmarks[4];
-        const indexTip = landmarks[8];
-        const middleTip = landmarks[12];
-        const ringTip = landmarks[16];
-        const pinkyTip = landmarks[20];
-        
-        // 1. Position (0..1)
+        const wrist = landmarks[HAND_LANDMARK_INDICES.WRIST];
+        const thumbTip = landmarks[HAND_LANDMARK_INDICES.THUMB_TIP];
+        const indexTip = landmarks[HAND_LANDMARK_INDICES.INDEX_TIP];
+        const middleTip = landmarks[HAND_LANDMARK_INDICES.MIDDLE_TIP];
+        const ringTip = landmarks[HAND_LANDMARK_INDICES.RING_TIP];
+        const pinkyTip = landmarks[HAND_LANDMARK_INDICES.PINKY_TIP];
+
+        // Position
         const x = wrist.x;
         const y = wrist.y;
 
-        // 2. Roll (Tilt)
-        // Calculate based on Index vs Pinky MCP Y difference
-        const indexMCP = landmarks[5];
-        const pinkyMCP = landmarks[17];
-        const dx = pinkyMCP.x - indexMCP.x;
-        const dy = pinkyMCP.y - indexMCP.y;
-        let rollVal = Math.atan2(dy, dx);
-        rollVal = Math.max(-1, Math.min(1, rollVal * 2));
-        
-        // Helper: Is Finger Extended? (Tip further from wrist than PIP)
-        // Using PIP (Joint 6, 10, 14, 18) for comparison
-        const isExtended = (tip: any, pip: any) => {
-             const dTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
-             const dPip = Math.hypot(pip.x - wrist.x, pip.y - wrist.y);
-             return dTip > dPip * 1.2;
-        };
-        
-        const indexExt = isExtended(indexTip, landmarks[6]);
-        const middleExt = isExtended(middleTip, landmarks[10]);
-        const ringExt = isExtended(ringTip, landmarks[14]);
-        const pinkyExt = isExtended(pinkyTip, landmarks[18]);
+        // Roll
+        const rollVal = calculateRoll(landmarks);
 
-        // 3. Pinch (Thumb + Index close)
-        const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
-        const pinch = pinchDist < 0.05;
+        // Finger extensions
+        const indexExt = isFingerExtended(indexTip, landmarks[HAND_LANDMARK_INDICES.INDEX_PIP], wrist);
+        const middleExt = isFingerExtended(middleTip, landmarks[HAND_LANDMARK_INDICES.MIDDLE_PIP], wrist);
+        const ringExt = isFingerExtended(ringTip, landmarks[HAND_LANDMARK_INDICES.RING_PIP], wrist);
+        const pinkyExt = isFingerExtended(pinkyTip, landmarks[HAND_LANDMARK_INDICES.PINKY_PIP], wrist);
 
-        // 4. Fist (All 4 fingers curled)
-        // Note: isExtended checks if OPEN. So !isExtended means curled.
-        const fist = !indexExt && !middleExt && !ringExt && !pinkyExt;
+        // Gestures
+        const pinch = detectPinch(thumbTip, indexTip);
+        const fist = detectFist(indexExt, middleExt, ringExt, pinkyExt);
+        const peace = detectPeace(indexExt, middleExt, ringExt, pinkyExt);
 
-        // 5. Peace (Index + Middle Extended, others curled)
-        // We typically ignore thumb for peace sign, or check it's not interfering.
-        // Let's just strictly check fingers.
-        const peace = indexExt && middleExt && !ringExt && !pinkyExt; 
-        
         // Emit Frame
         onHandFrame({
-            x,
-            y,
-            roll: rollVal,
-            pinch,
-            fist,
-            peace
+          x,
+          y,
+          roll: rollVal,
+          pinch,
+          fist,
+          peace,
         });
 
-        // Debug Visuals
-        canvasCtx.fillStyle = "cyan";
+        canvasCtx.fillStyle = DRAWING_STYLES.DEBUG_TEXT_COLOR;
         canvasCtx.fillText(`Roll: ${rollVal.toFixed(2)}`, 10, 20);
         canvasCtx.fillText(`Pinch: ${pinch}`, 10, 40);
         canvasCtx.fillText(`Fist: ${fist}`, 10, 60);
         canvasCtx.fillText(`Peace: ${peace}`, 10, 80);
-
-      } else {
-        // Optional: Emit specific "No Hand" frame if needed to stop momentum instantly
-        // onHandFrame({ x:0.5, y:0.5, roll:0, pinch:false, fist:false });
       }
     }
 
@@ -193,8 +166,8 @@ export default function HandGestureController({ onHandFrame }: HandGestureContro
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full object-cover -scale-x-100"
-        width={320}
-        height={240}
+        width={VIDEO_CONFIG.CANVAS_WIDTH}
+        height={VIDEO_CONFIG.CANVAS_HEIGHT}
       />
     </div>
   );

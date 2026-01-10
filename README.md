@@ -69,19 +69,115 @@ The garden is controlled entirely by your hand movements captured via webcam.
 
 ## 📁 Project Structure
 
-- `app/page.tsx`: Main entry point rendering the Zen Garden interface.
-- `components/ZenGarden.tsx`: Core 3D scene logic using Three.js (Scene, Camera, Lights, Meshes, Raycasting).
-- `components/HandGestureController.tsx`: Handles MediaPipe initialization, webcam stream, and gesture recognition logic.
+```
+pocket-zen-garden/
+├── app/                        # Next.js app directory
+│   ├── layout.tsx             # Root layout with metadata
+│   └── page.tsx               # Main entry point
+├── components/                 # React components
+│   ├── ErrorBoundary.tsx      # Error handling boundary
+│   ├── HandGestureController.tsx  # MediaPipe hand tracking
+│   └── ZenGarden.tsx          # Three.js 3D scene orchestration
+├── constants/                  # Configuration constants
+│   ├── gestures.ts            # Hand gesture thresholds
+│   ├── mediapipe.ts           # MediaPipe configuration
+│   ├── scene.ts               # Three.js scene constants
+│   └── index.ts               # Barrel exports
+├── hooks/                      # Custom React hooks
+│   ├── useGardenRotation.ts   # Garden rotation logic
+│   ├── useSandRaking.ts       # Sand trail rendering
+│   ├── useStoneLevitation.ts  # Stone grab/levitation
+│   ├── useThrottledCallback.ts # Performance throttling
+│   ├── useTimeControl.ts      # Day/night cycle control
+│   └── index.ts               # Barrel exports
+├── lib/                        # Utility libraries
+│   ├── mediapipe/
+│   │   ├── gesture-detection.ts   # Gesture recognition logic
+│   │   └── index.ts
+│   └── three/
+│       ├── day-night.ts           # Day/night cycle rendering
+│       ├── garden-objects.ts      # 3D object creation
+│       ├── raycasting.ts          # Ray-object intersection
+│       ├── scene-setup.ts         # Scene initialization
+│       └── index.ts               # Barrel exports
+├── types/                      # TypeScript type definitions
+│   └── index.ts               # Shared interfaces
+└── public/                     # Static assets
+```
+
+## 🏗️ Architecture
+
+### Design Principles
+- **Separation of Concerns**: Components, logic, and configuration are isolated into dedicated directories
+- **Type Safety**: Full TypeScript coverage with explicit interfaces
+- **Named Constants**: All magic numbers extracted to semantic constants
+- **Reusability**: Shared logic in hooks and lib utilities
+- **Single Responsibility**: Each file has one clear, focused purpose
+
+### Component Flow
+
+```
+User Hand Gesture
+      ↓
+[HandGestureController] ← MediaPipe SDK
+      ↓
+  HandFrame data
+      ↓
+   [page.tsx] ← ErrorBoundary
+      ↓
+ [ZenGarden] ← Three.js Scene
+      ↓
+  ┌────────────────────┐
+  │   Custom Hooks     │
+  ├────────────────────┤
+  │ useGardenRotation  │
+  │ useStoneLevitation │
+  │ useSandRaking      │
+  │ useTimeControl     │
+  └────────────────────┘
+      ↓
+  ┌────────────────────┐
+  │   Lib Utilities    │
+  ├────────────────────┤
+  │ scene-setup        │
+  │ garden-objects     │
+  │ raycasting         │
+  │ day-night          │
+  │ gesture-detection  │
+  └────────────────────┘
+      ↓
+  Three.js Rendering
+```
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+### Adding New Features
+
+When adding new features, follow the project's architecture:
+
+1. **Constants**: Add configuration to `constants/` (e.g., thresholds, colors, positions)
+2. **Types**: Define interfaces in `types/index.ts` for new data structures
+3. **Logic**: Create utilities in `lib/` or hooks in `hooks/` for reusable logic
+4. **Components**: Compose using existing utilities and hooks
+
+### Development Guidelines
+
+- Keep components focused on composition, not logic
+- Extract all magic numbers to named constants
+- Use TypeScript for type safety - avoid `any` types
+- Add error handling for user-facing operations
+- Test all gestures after making changes
+
+### Pull Request Process
+
 1.  Fork the Project
 2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
 3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4.  Push to the Branch (`git push origin feature/AmazingFeature`)
-5.  Open a Pull Request
+4.  Ensure `npm run build` succeeds with no errors
+5.  Push to the Branch (`git push origin feature/AmazingFeature`)
+6.  Open a Pull Request
 
 ## 📄 License
 
