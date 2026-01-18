@@ -56,8 +56,9 @@ export const STONE_CONFIG = {
   COLOR: 0x888888,
   HOVER_HEIGHT: 1.0,
   GROUND_HEIGHT: 0.4,
-  EMISSIVE_HIGHLIGHT: 0x444444,
   EMISSIVE_NORMAL: 0x000000,
+  EMISSIVE_HOVER: 0x222222,
+  EMISSIVE_GRAB: 0x444444,
 } as const;
 
 export const INITIAL_STONES: StoneConfig[] = [
@@ -93,6 +94,21 @@ export const TRAIL_CONFIG = {
   LINE_WIDTH: 2,
   MAX_POINTS: 500,
   Y_OFFSET: -0.24,
+} as const;
+
+export const CURSOR_CONFIG = {
+  Y_POSITION: 0.1,
+  RING_INNER_RADIUS: 0.15,
+  RING_OUTER_RADIUS: 0.2,
+  DOT_RADIUS: 0.05,
+  COLOR_NORMAL: 0x00ffaa,
+  COLOR_HOVER: 0xffff00,
+  COLOR_GRAB: 0xff8800,
+  SCALE_NORMAL: 1.0,
+  SCALE_HOVER: 1.2,
+  SCALE_GRAB: 0.8,
+  OPACITY_RING: 0.8,
+  OPACITY_DOT: 0.9,
 } as const;
 
 // Day/Night Cycle

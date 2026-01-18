@@ -1,16 +1,12 @@
 import { useRef, MutableRefObject } from 'react';
 import * as THREE from 'three';
-import { HandFrame } from '@/types';
+import { HandFrame, SceneObjectsRef } from '@/types';
 import { TRAIL_CONFIG } from '@/constants';
 
-interface SceneObjects {
-  soil: THREE.Mesh | null;
-  gardenGroup: THREE.Group | null;
-  trailLine: THREE.Line | null;
-}
+type RequiredObjects = Pick<SceneObjectsRef, 'soil' | 'gardenGroup' | 'trailLine'>;
 
 export function useSandRaking(
-  sceneObjectsRef: MutableRefObject<SceneObjects>,
+  sceneObjectsRef: MutableRefObject<RequiredObjects>,
   raycasterRef: MutableRefObject<THREE.Raycaster>
 ) {
   const trailPointsRef = useRef<THREE.Vector3[]>([]);

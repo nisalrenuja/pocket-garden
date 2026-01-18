@@ -56,30 +56,15 @@ export interface Landmark {
 }
 
 /**
- * Scene objects collection
+ * Scene objects ref - mutable state for hooks
  */
-export interface SceneObjects {
-  scene: THREE.Scene;
-  camera: THREE.PerspectiveCamera;
-  renderer: THREE.WebGLRenderer;
-  gardenGroup: THREE.Group;
+export interface SceneObjectsRef {
+  gardenGroup: THREE.Group | null;
   stones: THREE.Mesh[];
-  leaves: THREE.Mesh[];
-  soil: THREE.Mesh;
-  dragPlane: THREE.Mesh;
-  trailLine: THREE.Line;
-  lights: {
-    hemiLight: THREE.HemisphereLight;
-    dirLight: THREE.DirectionalLight;
-  };
-}
-
-/**
- * Animation state
- */
-export interface AnimationState {
-  targetRotation: number;
-  timeOfDay: number;
-  trailPoints: THREE.Vector3[];
-  grabbedObject: THREE.Object3D | null;
+  soil: THREE.Mesh | null;
+  dragPlane: THREE.Mesh | null;
+  trailLine: THREE.Line | null;
+  hemiLight: THREE.HemisphereLight | null;
+  dirLight: THREE.DirectionalLight | null;
+  handCursor: THREE.Group | null;
 }

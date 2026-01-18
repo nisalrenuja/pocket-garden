@@ -7,6 +7,7 @@ import {
   BONSAI_CONFIG,
   INITIAL_LEAVES,
   TRAIL_CONFIG,
+  CURSOR_CONFIG,
 } from '@/constants';
 
 export function createSoil(): THREE.Mesh {
@@ -105,34 +106,34 @@ export function createTrailLine(): THREE.Line {
   return new THREE.Line(geometry, material);
 }
 
-// Hand cursor indicator
 export function createHandCursor(): THREE.Group {
   const group = new THREE.Group();
 
-  // Outer ring
-  const ringGeometry = new THREE.RingGeometry(0.15, 0.2, 32);
+  const ringGeometry = new THREE.RingGeometry(
+    CURSOR_CONFIG.RING_INNER_RADIUS,
+    CURSOR_CONFIG.RING_OUTER_RADIUS,
+    32
+  );
   const ringMaterial = new THREE.MeshBasicMaterial({
-    color: 0x00ffaa,
+    color: CURSOR_CONFIG.COLOR_NORMAL,
     transparent: true,
-    opacity: 0.8,
+    opacity: CURSOR_CONFIG.OPACITY_RING,
     side: THREE.DoubleSide,
   });
   const ring = new THREE.Mesh(ringGeometry, ringMaterial);
   ring.rotation.x = -Math.PI / 2;
   group.add(ring);
 
-  // Center dot
-  const dotGeometry = new THREE.CircleGeometry(0.05, 16);
+  const dotGeometry = new THREE.CircleGeometry(CURSOR_CONFIG.DOT_RADIUS, 16);
   const dotMaterial = new THREE.MeshBasicMaterial({
-    color: 0x00ffaa,
+    color: CURSOR_CONFIG.COLOR_NORMAL,
     transparent: true,
-    opacity: 0.9,
+    opacity: CURSOR_CONFIG.OPACITY_DOT,
     side: THREE.DoubleSide,
   });
   const dot = new THREE.Mesh(dotGeometry, dotMaterial);
   dot.rotation.x = -Math.PI / 2;
   group.add(dot);
 
-  group.visible = true;
   return group;
 }

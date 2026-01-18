@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { HandFrame, PocketGardenHandle } from '@/types';
+import { HandFrame, PocketGardenHandle, SceneObjectsRef } from '@/types';
 import {
   createScene,
   createCamera,
@@ -17,6 +17,7 @@ import {
   getNormalizedDeviceCoords,
   updateDayNightCycle,
   handleResize,
+  updateCursor,
 } from '@/lib/three';
 import {
   useGardenRotation,
@@ -37,16 +38,7 @@ const PocketGarden = React.forwardRef<PocketGardenHandle, {}>((props, ref) => {
   });
 
   const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
-  const sceneObjectsRef = useRef<{
-    gardenGroup: THREE.Group | null;
-    stones: THREE.Mesh[];
-    soil: THREE.Mesh | null;
-    dragPlane: THREE.Mesh | null;
-    trailLine: THREE.Line | null;
-    hemiLight: THREE.HemisphereLight | null;
-    dirLight: THREE.DirectionalLight | null;
-    handCursor: THREE.Group | null;
-  }>({
+  const sceneObjectsRef = useRef<SceneObjectsRef>({
     gardenGroup: null,
     stones: [],
     soil: null,
@@ -132,39 +124,13 @@ const PocketGarden = React.forwardRef<PocketGardenHandle, {}>((props, ref) => {
       const ndc = getNormalizedDeviceCoords(frame.x, frame.y);
       raycaster.setFromCamera(ndc, camera);
 
-      // Update hand cursor position
       const planeIntersects = raycaster.intersectObject(dragPlane);
       if (planeIntersects.length > 0 && handCursor) {
-        handCursor.position.copy(planeIntersects[0].point);
-        handCursor.position.y = 0.1; // Slightly above ground
-        handCursor.visible = true;
-
-        // Update cursor color based on state
-        const cursorRing = handCursor.children[0] as THREE.Mesh;
-        const cursorDot = handCursor.children[1] as THREE.Mesh;
-        const ringMat = cursorRing.material as THREE.MeshBasicMaterial;
-        const dotMat = cursorDot.material as THREE.MeshBasicMaterial;
-
-        if (frame.pinch) {
-          // Grabbing - orange color
-          ringMat.color.setHex(0xff8800);
-          dotMat.color.setHex(0xff8800);
-          handCursor.scale.setScalar(0.8);
-        } else {
-          // Check if hovering over a stone
-          const stoneIntersects = raycaster.intersectObjects(stones);
-          if (stoneIntersects.length > 0) {
-            // Hovering over stone - yellow highlight
-            ringMat.color.setHex(0xffff00);
-            dotMat.color.setHex(0xffff00);
-            handCursor.scale.setScalar(1.2);
-          } else {
-            // Normal state - cyan
-            ringMat.color.setHex(0x00ffaa);
-            dotMat.color.setHex(0x00ffaa);
-            handCursor.scale.setScalar(1.0);
-          }
-        }
+        const stoneIntersects = raycaster.intersectObjects(stones);
+        updateCursor(handCursor, planeIntersects[0].point, {
+          isPinching: frame.pinch,
+          isHoveringStone: stoneIntersects.length > 0,
+        });
       }
 
       // Update interactions

@@ -1,21 +1,12 @@
 import { useRef, MutableRefObject } from 'react';
 import * as THREE from 'three';
-import { HandFrame } from '@/types';
+import { HandFrame, SceneObjectsRef } from '@/types';
 import { STONE_CONFIG, GESTURE_CONFIG } from '@/constants';
 
-interface SceneObjects {
-  gardenGroup: THREE.Group | null;
-  stones: THREE.Mesh[];
-  dragPlane: THREE.Mesh | null;
-}
-
-// Hover highlight color (subtle glow)
-const HOVER_EMISSIVE = 0x222222;
-// Grab highlight color (brighter)
-const GRAB_EMISSIVE = 0x444444;
+type RequiredObjects = Pick<SceneObjectsRef, 'gardenGroup' | 'stones' | 'dragPlane'>;
 
 export function useStoneLevitation(
-  sceneObjectsRef: MutableRefObject<SceneObjects>,
+  sceneObjectsRef: MutableRefObject<RequiredObjects>,
   raycasterRef: MutableRefObject<THREE.Raycaster>
 ) {
   const grabbedObjectRef = useRef<THREE.Object3D | null>(null);
@@ -59,7 +50,7 @@ export function useStoneLevitation(
       if (intersects.length > 0) {
         hoveredStoneRef.current = intersects[0].object as THREE.Mesh;
         const mat = hoveredStoneRef.current.material as THREE.MeshStandardMaterial;
-        mat.emissive.setHex(HOVER_EMISSIVE);
+        mat.emissive.setHex(STONE_CONFIG.EMISSIVE_HOVER);
       }
     }
 
@@ -76,7 +67,7 @@ export function useStoneLevitation(
           grabbedObjectRef.current = intersects[0].object;
           const mat = (grabbedObjectRef.current as THREE.Mesh)
             .material as THREE.MeshStandardMaterial;
-          mat.emissive.setHex(GRAB_EMISSIVE);
+          mat.emissive.setHex(STONE_CONFIG.EMISSIVE_GRAB);
         }
       } else {
         const dragIntersects = raycaster.intersectObject(dragPlane);

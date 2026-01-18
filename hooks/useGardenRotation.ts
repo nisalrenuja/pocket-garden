@@ -1,14 +1,11 @@
 import { useRef, MutableRefObject } from 'react';
-import * as THREE from 'three';
-import { HandFrame } from '@/types';
+import { HandFrame, SceneObjectsRef } from '@/types';
 import { GESTURE_CONFIG } from '@/constants';
 
-interface SceneObjects {
-  gardenGroup: THREE.Group | null;
-}
+type RequiredObjects = Pick<SceneObjectsRef, 'gardenGroup'>;
 
 export function useGardenRotation(
-  sceneObjectsRef: MutableRefObject<SceneObjects>
+  sceneObjectsRef: MutableRefObject<RequiredObjects>
 ) {
   const targetRotationRef = useRef(0);
 

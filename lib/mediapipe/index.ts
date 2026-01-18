@@ -1,1 +1,1 @@
-export * from './gesture-detection';
+export { processLandmarks } from './gesture-detection';

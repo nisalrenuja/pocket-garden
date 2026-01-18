@@ -7,26 +7,14 @@ import {
   DrawingUtils,
 } from "@mediapipe/tasks-vision";
 import { HandFrame, Landmark } from "@/types";
-import {
-  MEDIAPIPE_CONFIG,
-  HAND_LANDMARK_INDICES,
-  VIDEO_CONFIG,
-  DRAWING_STYLES,
-} from "@/constants";
-import {
-  calculateRoll,
-  isFingerExtended,
-  detectPinch,
-  detectFist,
-  detectPeace,
-} from "@/lib/mediapipe";
+import { MEDIAPIPE_CONFIG, VIDEO_CONFIG, DRAWING_STYLES } from "@/constants";
+import { processLandmarks } from "@/lib/mediapipe";
 import { useAudioFeedback } from "@/hooks";
 
 interface HandGestureControllerProps {
   onHandFrame: (frame: HandFrame) => void;
 }
 
-// Neutral frame emitted when no hand is detected
 const NEUTRAL_FRAME: HandFrame = {
   x: 0.5,
   y: 0.5,
@@ -36,32 +24,44 @@ const NEUTRAL_FRAME: HandFrame = {
   peace: false,
 };
 
-const HAND_LOST_TIMEOUT_MS = 150; // Time before resetting state when hand leaves frame
+const HAND_LOST_TIMEOUT_MS = 150;
+
+function formatDebugInfo(frame: HandFrame, isHandPresent: boolean): string {
+  if (!isHandPresent) return 'Show your hand';
+
+  const gestures: string[] = [];
+  if (frame.pinch) gestures.push('Grab');
+  if (frame.fist) gestures.push(frame.y < 0.5 ? 'Day' : 'Night');
+  if (frame.peace) gestures.push('Rake');
+  if (!frame.fist && Math.abs(frame.roll) > 0.1) {
+    gestures.push(frame.roll > 0 ? 'Tilt →' : 'Tilt ←');
+  }
+
+  return gestures.length > 0 ? gestures.join(' · ') : 'Rotate';
+}
 
 export default function HandGestureController({ onHandFrame }: HandGestureControllerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [debugInfo, setDebugInfo] = useState('Show your hand');
   const requestRef = useRef<number>(0);
   const handLandmarkerRef = useRef<HandLandmarker | null>(null);
   const lastHandSeenRef = useRef<number>(0);
   const handPresentRef = useRef<boolean>(false);
-  
-  // Previous state trackers for audio triggers
+
   const prevPinchRef = useRef<boolean>(false);
   const prevFistRef = useRef<boolean>(false);
   const prevPeaceRef = useRef<boolean>(false);
 
-  // Audio hook
   const { playGrab, playRelease, playMagic, playWind, preloadSounds, initAudio } = useAudioFeedback();
 
   useEffect(() => {
-    let handLandmarker: HandLandmarker;
+    let handLandmarker: HandLandmarker | null = null;
+    let videoStream: MediaStream | null = null;
 
-    const createHandLandmarker = async () => {
-      const vision = await FilesetResolver.forVisionTasks(
-        MEDIAPIPE_CONFIG.VISION_TASKS_CDN
-      );
+    const init = async () => {
+      const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_CONFIG.VISION_TASKS_CDN);
       handLandmarker = await HandLandmarker.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: MEDIAPIPE_CONFIG.MODEL_URL,
@@ -72,38 +72,32 @@ export default function HandGestureController({ onHandFrame }: HandGestureContro
       });
       handLandmarkerRef.current = handLandmarker;
       setIsLoaded(true);
-      startCamera();
-      
-      // Initialize audio on first successful load/interaction potential
+
+      if (navigator.mediaDevices?.getUserMedia) {
+        try {
+          videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          if (videoRef.current) {
+            videoRef.current.srcObject = videoStream;
+            videoRef.current.addEventListener("loadeddata", predictWebcam);
+          }
+        } catch (error) {
+          console.error("Error accessing webcam:", error);
+        }
+      }
+
       preloadSounds();
       document.addEventListener('click', initAudio, { once: true });
     };
 
-    createHandLandmarker();
+    init();
 
     return () => {
-      if (handLandmarker) {
-        handLandmarker.close();
-      }
+      handLandmarker?.close();
       cancelAnimationFrame(requestRef.current);
+      videoStream?.getTracks().forEach(track => track.stop());
+      document.removeEventListener('click', initAudio);
     };
   }, [preloadSounds, initAudio]);
-
-  const startCamera = async () => {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-        });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.addEventListener("loadeddata", predictWebcam);
-        }
-      } catch (error) {
-        console.error("Error accessing webcam:", error);
-      }
-    }
-  };
 
   const predictWebcam = () => {
     if (!handLandmarkerRef.current || !videoRef.current || !canvasRef.current) return;
@@ -119,11 +113,10 @@ export default function HandGestureController({ onHandFrame }: HandGestureContro
       const drawingUtils = new DrawingUtils(canvasCtx);
 
       if (results.landmarks && results.landmarks.length > 0) {
-        const landmarks = results.landmarks[0];
+        const landmarks = results.landmarks[0] as Landmark[];
         lastHandSeenRef.current = startTimeMs;
         handPresentRef.current = true;
 
-        // Draw landmarks
         drawingUtils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, {
           color: DRAWING_STYLES.CONNECTOR_COLOR,
           lineWidth: DRAWING_STYLES.CONNECTOR_WIDTH,
@@ -133,94 +126,28 @@ export default function HandGestureController({ onHandFrame }: HandGestureContro
           lineWidth: DRAWING_STYLES.LANDMARK_WIDTH,
         });
 
-        const wrist = landmarks[HAND_LANDMARK_INDICES.WRIST];
-        const thumbTip = landmarks[HAND_LANDMARK_INDICES.THUMB_TIP];
-        const indexTip = landmarks[HAND_LANDMARK_INDICES.INDEX_TIP];
-        const middleTip = landmarks[HAND_LANDMARK_INDICES.MIDDLE_TIP];
-        const ringTip = landmarks[HAND_LANDMARK_INDICES.RING_TIP];
-        const pinkyTip = landmarks[HAND_LANDMARK_INDICES.PINKY_TIP];
+        const frame = processLandmarks(landmarks);
 
-        // Position
-        const x = wrist.x;
-        const y = wrist.y;
+        if (frame.pinch && !prevPinchRef.current) playGrab();
+        else if (!frame.pinch && prevPinchRef.current) playRelease();
+        if (frame.fist && !prevFistRef.current) playMagic();
+        if (frame.peace && !prevPeaceRef.current) playWind();
 
-        // Roll
-        const rollVal = calculateRoll(landmarks);
+        prevPinchRef.current = frame.pinch;
+        prevFistRef.current = frame.fist;
+        prevPeaceRef.current = frame.peace;
 
-        // Finger extensions
-        const indexExt = isFingerExtended(indexTip, landmarks[HAND_LANDMARK_INDICES.INDEX_PIP], wrist);
-        const middleExt = isFingerExtended(middleTip, landmarks[HAND_LANDMARK_INDICES.MIDDLE_PIP], wrist);
-        const ringExt = isFingerExtended(ringTip, landmarks[HAND_LANDMARK_INDICES.RING_PIP], wrist);
-        const pinkyExt = isFingerExtended(pinkyTip, landmarks[HAND_LANDMARK_INDICES.PINKY_PIP], wrist);
-
-        // Gestures
-        const pinch = detectPinch(thumbTip, indexTip);
-        const fist = detectFist(indexExt, middleExt, ringExt, pinkyExt);
-        const peace = detectPeace(indexExt, middleExt, ringExt, pinkyExt);
-        
-        // --- Audio Triggers ---
-        if (pinch && !prevPinchRef.current) {
-          playGrab();
-        } else if (!pinch && prevPinchRef.current) {
-          playRelease();
-        }
-
-        if (fist && !prevFistRef.current) {
-          playMagic();
-        }
-
-        if (peace && !prevPeaceRef.current) {
-          playWind();
-        }
-
-        // Update refs
-        prevPinchRef.current = pinch;
-        prevFistRef.current = fist;
-        prevPeaceRef.current = peace;
-        // ----------------------
-
-        // Emit Frame
-        onHandFrame({
-          x,
-          y,
-          roll: rollVal,
-          pinch,
-          fist,
-          peace,
-        });
-
-        // Update debug panel
-        const debugEl = document.getElementById('gesture-debug');
-        if (debugEl) {
-          const activeGestures = [];
-          if (pinch) activeGestures.push('Pinch (Grab)');
-          if (fist) {
-            const timePos = y < 0.5 ? 'Day' : 'Night';
-            activeGestures.push(`Fist (${timePos})`);
-          }
-          if (peace) activeGestures.push('Peace (Rake)');
-          if (!fist && Math.abs(rollVal) > 0.1) activeGestures.push(`Tilt: ${rollVal > 0 ? 'Right' : 'Left'}`);
-
-          debugEl.innerHTML = activeGestures.length > 0
-            ? activeGestures.join(' | ')
-            : 'Open hand to rotate';
-        }
+        onHandFrame(frame);
+        setDebugInfo(formatDebugInfo(frame, true));
       } else {
-        // No hand detected - check if we should reset state
         const timeSinceHandSeen = startTimeMs - lastHandSeenRef.current;
         if (handPresentRef.current && timeSinceHandSeen > HAND_LOST_TIMEOUT_MS) {
           handPresentRef.current = false;
-          // Reset gesture refs
           prevPinchRef.current = false;
           prevFistRef.current = false;
           prevPeaceRef.current = false;
-          
           onHandFrame(NEUTRAL_FRAME);
-          // Update debug panel
-          const debugEl = document.getElementById('gesture-debug');
-          if (debugEl) {
-            debugEl.innerHTML = 'Show your hand to start';
-          }
+          setDebugInfo(formatDebugInfo(NEUTRAL_FRAME, false));
         }
       }
     }
@@ -229,9 +156,11 @@ export default function HandGestureController({ onHandFrame }: HandGestureContro
   };
 
   return (
-    <>
-      {/* Webcam preview in bottom-right corner */}
-      <div className="fixed bottom-5 right-5 w-64 h-48 bg-black/20 backdrop-blur-md rounded-xl overflow-hidden border border-white/20 shadow-2xl z-50">
+    <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2">
+      <div className="px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-lg text-white/90 text-xs font-medium">
+        {debugInfo}
+      </div>
+      <div className="w-64 h-48 bg-black/20 backdrop-blur-md rounded-xl overflow-hidden border border-white/20 shadow-2xl">
         {!isLoaded && (
           <div className="absolute inset-0 flex items-center justify-center text-white text-xs">
             Loading AI...
@@ -250,6 +179,6 @@ export default function HandGestureController({ onHandFrame }: HandGestureContro
           height={VIDEO_CONFIG.CANVAS_HEIGHT}
         />
       </div>
-    </>
+    </div>
   );
 }
