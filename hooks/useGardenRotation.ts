@@ -1,12 +1,19 @@
-import { useRef } from 'react';
+import { useRef, MutableRefObject } from 'react';
 import * as THREE from 'three';
 import { HandFrame } from '@/types';
 import { GESTURE_CONFIG } from '@/constants';
 
-export function useGardenRotation(gardenGroup: THREE.Group | null) {
+interface SceneObjects {
+  gardenGroup: THREE.Group | null;
+}
+
+export function useGardenRotation(
+  sceneObjectsRef: MutableRefObject<SceneObjects>
+) {
   const targetRotationRef = useRef(0);
 
   const updateRotation = (frame: HandFrame): void => {
+    const gardenGroup = sceneObjectsRef.current.gardenGroup;
     if (!gardenGroup) return;
 
     const isBraking = frame.fist && frame.y >= GESTURE_CONFIG.BRAKE_Y_THRESHOLD;

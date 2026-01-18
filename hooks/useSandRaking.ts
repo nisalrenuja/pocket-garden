@@ -1,17 +1,23 @@
-import { useRef } from 'react';
+import { useRef, MutableRefObject } from 'react';
 import * as THREE from 'three';
 import { HandFrame } from '@/types';
 import { TRAIL_CONFIG } from '@/constants';
 
+interface SceneObjects {
+  soil: THREE.Mesh | null;
+  gardenGroup: THREE.Group | null;
+  trailLine: THREE.Line | null;
+}
+
 export function useSandRaking(
-  soil: THREE.Mesh | null,
-  gardenGroup: THREE.Group | null,
-  trailLine: THREE.Line | null,
-  raycaster: THREE.Raycaster
+  sceneObjectsRef: MutableRefObject<SceneObjects>,
+  raycasterRef: MutableRefObject<THREE.Raycaster>
 ) {
   const trailPointsRef = useRef<THREE.Vector3[]>([]);
 
   const updateRaking = (frame: HandFrame): void => {
+    const { soil, gardenGroup, trailLine } = sceneObjectsRef.current;
+    const raycaster = raycasterRef.current;
     if (!frame.peace || !soil || !gardenGroup || !trailLine) return;
 
     const groundIntersects = raycaster.intersectObject(soil);

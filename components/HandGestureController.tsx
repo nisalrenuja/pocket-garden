@@ -25,12 +25,26 @@ interface HandGestureControllerProps {
   onHandFrame: (frame: HandFrame) => void;
 }
 
+// Neutral frame emitted when no hand is detected
+const NEUTRAL_FRAME: HandFrame = {
+  x: 0.5,
+  y: 0.5,
+  roll: 0,
+  pinch: false,
+  fist: false,
+  peace: false,
+};
+
+const HAND_LOST_TIMEOUT_MS = 150; // Time before resetting state when hand leaves frame
+
 export default function HandGestureController({ onHandFrame }: HandGestureControllerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const requestRef = useRef<number>(0);
   const handLandmarkerRef = useRef<HandLandmarker | null>(null);
+  const lastHandSeenRef = useRef<number>(0);
+  const handPresentRef = useRef<boolean>(false);
 
   useEffect(() => {
     let handLandmarker: HandLandmarker;
@@ -93,6 +107,8 @@ export default function HandGestureController({ onHandFrame }: HandGestureContro
 
       if (results.landmarks && results.landmarks.length > 0) {
         const landmarks = results.landmarks[0];
+        lastHandSeenRef.current = startTimeMs;
+        handPresentRef.current = true;
 
         // Draw landmarks
         drawingUtils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, {
@@ -144,6 +160,15 @@ export default function HandGestureController({ onHandFrame }: HandGestureContro
         canvasCtx.fillText(`Pinch: ${pinch}`, 10, 40);
         canvasCtx.fillText(`Fist: ${fist}`, 10, 60);
         canvasCtx.fillText(`Peace: ${peace}`, 10, 80);
+      } else {
+        // No hand detected - check if we should reset state
+        const timeSinceHandSeen = startTimeMs - lastHandSeenRef.current;
+        if (handPresentRef.current && timeSinceHandSeen > HAND_LOST_TIMEOUT_MS) {
+          handPresentRef.current = false;
+          onHandFrame(NEUTRAL_FRAME);
+          canvasCtx.fillStyle = DRAWING_STYLES.DEBUG_TEXT_COLOR;
+          canvasCtx.fillText("No hand detected", 10, 20);
+        }
       }
     }
 

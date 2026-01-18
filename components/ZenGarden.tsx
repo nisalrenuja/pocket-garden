@@ -54,6 +54,12 @@ const ZenGarden = React.forwardRef<ZenGardenHandle, {}>((props, ref) => {
     dirLight: null,
   });
 
+  // Initialize hooks at top level (they read from refs during updates)
+  const { updateRotation } = useGardenRotation(sceneObjectsRef);
+  const { updateLevitation } = useStoneLevitation(sceneObjectsRef, raycasterRef);
+  const { updateRaking } = useSandRaking(sceneObjectsRef, raycasterRef);
+  const { updateTime, getTimeOfDay } = useTimeControl();
+
   React.useImperativeHandle(ref, () => ({
     updateHandFrame: (frame: HandFrame) => {
       handFrameRef.current = frame;
@@ -105,22 +111,6 @@ const ZenGarden = React.forwardRef<ZenGardenHandle, {}>((props, ref) => {
       dirLight,
     };
 
-    // Initialize interaction hooks
-    const rotationHook = useGardenRotation(gardenGroup);
-    const levitationHook = useStoneLevitation(
-      stones,
-      gardenGroup,
-      raycasterRef.current,
-      dragPlane
-    );
-    const rakingHook = useSandRaking(
-      soil,
-      gardenGroup,
-      trailLine,
-      raycasterRef.current
-    );
-    const timeHook = useTimeControl();
-
     // Animation loop
     let frameId: number;
 
@@ -135,14 +125,14 @@ const ZenGarden = React.forwardRef<ZenGardenHandle, {}>((props, ref) => {
       raycaster.setFromCamera(ndc, camera);
 
       // Update interactions
-      rotationHook.updateRotation(frame);
-      levitationHook.updateLevitation(frame);
-      rakingHook.updateRaking(frame);
-      timeHook.updateTime(frame);
+      updateRotation(frame);
+      updateLevitation(frame);
+      updateRaking(frame);
+      updateTime(frame);
 
       // Update day/night cycle
       updateDayNightCycle(
-        timeHook.getTimeOfDay(),
+        getTimeOfDay(),
         scene,
         hemiLight,
         dirLight

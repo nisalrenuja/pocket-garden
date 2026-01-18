@@ -1,22 +1,43 @@
-import { useRef } from 'react';
+import { useRef, MutableRefObject } from 'react';
 import * as THREE from 'three';
 import { HandFrame } from '@/types';
 import { STONE_CONFIG, GESTURE_CONFIG } from '@/constants';
 
+interface SceneObjects {
+  gardenGroup: THREE.Group | null;
+  stones: THREE.Mesh[];
+  dragPlane: THREE.Mesh | null;
+}
+
 export function useStoneLevitation(
-  stones: THREE.Mesh[],
-  gardenGroup: THREE.Group | null,
-  raycaster: THREE.Raycaster,
-  dragPlane: THREE.Mesh | null
+  sceneObjectsRef: MutableRefObject<SceneObjects>,
+  raycasterRef: MutableRefObject<THREE.Raycaster>
 ) {
   const grabbedObjectRef = useRef<THREE.Object3D | null>(null);
+  const droppingObjectsRef = useRef<Set<THREE.Object3D>>(new Set());
 
   const updateLevitation = (frame: HandFrame): void => {
+    const { gardenGroup, stones, dragPlane } = sceneObjectsRef.current;
+    const raycaster = raycasterRef.current;
     if (!gardenGroup || !dragPlane) return;
+
+    // Animate dropping stones
+    const droppingObjects = droppingObjectsRef.current;
+    for (const obj of droppingObjects) {
+      if (obj.position.y > STONE_CONFIG.GROUND_HEIGHT) {
+        obj.position.y -= GESTURE_CONFIG.STONE_DROP_SPEED;
+      }
+      if (obj.position.y <= STONE_CONFIG.GROUND_HEIGHT) {
+        obj.position.y = STONE_CONFIG.GROUND_HEIGHT;
+        droppingObjects.delete(obj);
+      }
+    }
 
     if (frame.pinch) {
       if (!grabbedObjectRef.current) {
-        const intersects = raycaster.intersectObjects(stones);
+        // Don't grab stones that are currently dropping
+        const availableStones = stones.filter(s => !droppingObjects.has(s));
+        const intersects = raycaster.intersectObjects(availableStones);
         if (intersects.length > 0) {
           grabbedObjectRef.current = intersects[0].object;
           const mat = (grabbedObjectRef.current as THREE.Mesh)
@@ -44,10 +65,8 @@ export function useStoneLevitation(
         const mat = (grabbedObjectRef.current as THREE.Mesh)
           .material as THREE.MeshStandardMaterial;
         mat.emissive.setHex(STONE_CONFIG.EMISSIVE_NORMAL);
-        if (grabbedObjectRef.current.position.y > STONE_CONFIG.GROUND_HEIGHT) {
-          grabbedObjectRef.current.position.y -= GESTURE_CONFIG.STONE_DROP_SPEED;
-        }
-        grabbedObjectRef.current.position.y = STONE_CONFIG.GROUND_HEIGHT;
+        // Add to dropping set for animated fall
+        droppingObjects.add(grabbedObjectRef.current);
         grabbedObjectRef.current = null;
       }
     }

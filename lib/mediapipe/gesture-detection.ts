@@ -43,5 +43,7 @@ export function detectPeace(
   ringExt: boolean,
   pinkyExt: boolean
 ): boolean {
-  return indexExt && middleExt && !ringExt && !pinkyExt;
+  // Only require index and middle extended
+  // Ring and pinky can be in any position for easier gesture recognition
+  return indexExt && middleExt && !pinkyExt;
 }

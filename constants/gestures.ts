@@ -5,11 +5,11 @@ export const GESTURE_CONFIG = {
   ROTATION_SPEED: 0.02,
   ROTATION_SMOOTHING: 0.1,
 
-  // Braking (Fist Low)
-  BRAKE_Y_THRESHOLD: 0.4,
+  // Braking (Fist Low) - activates when y >= this value
+  BRAKE_Y_THRESHOLD: 0.5,
 
-  // Sky Control (Fist High)
-  SKY_CONTROL_Y_THRESHOLD: 0.4,
+  // Sky Control (Fist High) - activates when y < this value
+  SKY_CONTROL_Y_THRESHOLD: 0.35,
   TIME_LERP_SPEED: 0.35,
 
   // Pinch Detection
