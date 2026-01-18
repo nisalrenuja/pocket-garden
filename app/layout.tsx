@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pocket Zen Garden",
-  description: "Interactive 3D Zen Garden controlled by hand gestures",
+  title: "Pocket Garden",
+  description: "Interactive 3D Pocket Garden controlled by hand gestures",
 };
 
 export default function RootLayout({

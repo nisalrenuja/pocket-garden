@@ -1,6 +1,6 @@
-# Pocket Zen Garden 🎋
+# Pocket Pocket Garden 🎋
 
-A magical, interactive 3D Zen Garden simulator that you control with your hands. Built with **Next.js**, **Three.js**, and **MediaPipe** for real-time hand tracking.
+A magical, interactive 3D Pocket Garden simulator that you control with your hands. Built with **Next.js**, **Three.js**, and **MediaPipe** for real-time hand tracking.
 
 ![Project Status](https://img.shields.io/badge/status-active-success.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
@@ -77,7 +77,7 @@ pocket-zen-garden/
 ├── components/                 # React components
 │   ├── ErrorBoundary.tsx      # Error handling boundary
 │   ├── HandGestureController.tsx  # MediaPipe hand tracking
-│   └── ZenGarden.tsx          # Three.js 3D scene orchestration
+│   └── PocketGarden.tsx          # Three.js 3D scene orchestration
 ├── constants/                  # Configuration constants
 │   ├── gestures.ts            # Hand gesture thresholds
 │   ├── mediapipe.ts           # MediaPipe configuration
@@ -125,7 +125,7 @@ User Hand Gesture
       ↓
    [page.tsx] ← ErrorBoundary
       ↓
- [ZenGarden] ← Three.js Scene
+ [PocketGarden] ← Three.js Scene
       ↓
   ┌────────────────────┐
   │   Custom Hooks     │

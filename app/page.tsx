@@ -1,25 +1,25 @@
 "use client";
 
 import { useRef } from "react";
-import ZenGarden from "@/components/ZenGarden";
+import PocketGarden from "@/components/PocketGarden";
 import HandGestureController from "@/components/HandGestureController";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { ZenGardenHandle, HandFrame } from "@/types";
+import { PocketGardenHandle, HandFrame } from "@/types";
 
 export default function Home() {
-  const zenGardenRef = useRef<ZenGardenHandle>(null);
+  const pocketGardenRef = useRef<PocketGardenHandle>(null);
 
   const handleHandFrame = (frame: HandFrame) => {
-    if (zenGardenRef.current) {
-        zenGardenRef.current.updateHandFrame(frame);
+    if (pocketGardenRef.current) {
+        pocketGardenRef.current.updateHandFrame(frame);
     }
   };
 
   return (
     <ErrorBoundary>
       <main className="w-full h-screen overflow-hidden">
-          <HandGestureController onHandFrame={handleHandFrame} />
-          <ZenGarden ref={zenGardenRef} />
+        <HandGestureController onHandFrame={handleHandFrame} />
+        <PocketGarden ref={pocketGardenRef} />
       </main>
     </ErrorBoundary>
   );

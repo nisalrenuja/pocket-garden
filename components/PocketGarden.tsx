@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { HandFrame, ZenGardenHandle } from '@/types';
+import { HandFrame, PocketGardenHandle } from '@/types';
 import {
   createScene,
   createCamera,
@@ -13,6 +13,7 @@ import {
   createStones,
   createBonsai,
   createTrailLine,
+  createHandCursor,
   getNormalizedDeviceCoords,
   updateDayNightCycle,
   handleResize,
@@ -24,7 +25,7 @@ import {
   useTimeControl,
 } from '@/hooks';
 
-const ZenGarden = React.forwardRef<ZenGardenHandle, {}>((props, ref) => {
+const PocketGarden = React.forwardRef<PocketGardenHandle, {}>((props, ref) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const handFrameRef = useRef<HandFrame>({
     x: 0.5,
@@ -44,6 +45,7 @@ const ZenGarden = React.forwardRef<ZenGardenHandle, {}>((props, ref) => {
     trailLine: THREE.Line | null;
     hemiLight: THREE.HemisphereLight | null;
     dirLight: THREE.DirectionalLight | null;
+    handCursor: THREE.Group | null;
   }>({
     gardenGroup: null,
     stones: [],
@@ -52,6 +54,7 @@ const ZenGarden = React.forwardRef<ZenGardenHandle, {}>((props, ref) => {
     trailLine: null,
     hemiLight: null,
     dirLight: null,
+    handCursor: null,
   });
 
   // Initialize hooks at top level (they read from refs during updates)
@@ -100,6 +103,10 @@ const ZenGarden = React.forwardRef<ZenGardenHandle, {}>((props, ref) => {
     const trailLine = createTrailLine();
     gardenGroup.add(trailLine);
 
+    // Create hand cursor
+    const handCursor = createHandCursor();
+    scene.add(handCursor);
+
     // Store references
     sceneObjectsRef.current = {
       gardenGroup,
@@ -109,6 +116,7 @@ const ZenGarden = React.forwardRef<ZenGardenHandle, {}>((props, ref) => {
       trailLine,
       hemiLight,
       dirLight,
+      handCursor,
     };
 
     // Animation loop
@@ -123,6 +131,41 @@ const ZenGarden = React.forwardRef<ZenGardenHandle, {}>((props, ref) => {
       // Update raycaster
       const ndc = getNormalizedDeviceCoords(frame.x, frame.y);
       raycaster.setFromCamera(ndc, camera);
+
+      // Update hand cursor position
+      const planeIntersects = raycaster.intersectObject(dragPlane);
+      if (planeIntersects.length > 0 && handCursor) {
+        handCursor.position.copy(planeIntersects[0].point);
+        handCursor.position.y = 0.1; // Slightly above ground
+        handCursor.visible = true;
+
+        // Update cursor color based on state
+        const cursorRing = handCursor.children[0] as THREE.Mesh;
+        const cursorDot = handCursor.children[1] as THREE.Mesh;
+        const ringMat = cursorRing.material as THREE.MeshBasicMaterial;
+        const dotMat = cursorDot.material as THREE.MeshBasicMaterial;
+
+        if (frame.pinch) {
+          // Grabbing - orange color
+          ringMat.color.setHex(0xff8800);
+          dotMat.color.setHex(0xff8800);
+          handCursor.scale.setScalar(0.8);
+        } else {
+          // Check if hovering over a stone
+          const stoneIntersects = raycaster.intersectObjects(stones);
+          if (stoneIntersects.length > 0) {
+            // Hovering over stone - yellow highlight
+            ringMat.color.setHex(0xffff00);
+            dotMat.color.setHex(0xffff00);
+            handCursor.scale.setScalar(1.2);
+          } else {
+            // Normal state - cyan
+            ringMat.color.setHex(0x00ffaa);
+            dotMat.color.setHex(0x00ffaa);
+            handCursor.scale.setScalar(1.0);
+          }
+        }
+      }
 
       // Update interactions
       updateRotation(frame);
@@ -173,5 +216,5 @@ const ZenGarden = React.forwardRef<ZenGardenHandle, {}>((props, ref) => {
   );
 });
 
-ZenGarden.displayName = "ZenGarden";
-export default ZenGarden;
+PocketGarden.displayName = "PocketGarden";
+export default PocketGarden;

@@ -22,15 +22,15 @@ export const HAND_LANDMARK_INDICES = {
 } as const;
 
 export const VIDEO_CONFIG = {
-  CANVAS_WIDTH: 320,
-  CANVAS_HEIGHT: 240,
-  FONT: "16px monospace",
+  CANVAS_WIDTH: 640,
+  CANVAS_HEIGHT: 480,
+  FONT: "14px monospace",
 } as const;
 
 export const DRAWING_STYLES = {
-  CONNECTOR_COLOR: "#00FF00",
-  CONNECTOR_WIDTH: 2,
-  LANDMARK_COLOR: "#FF0000",
-  LANDMARK_WIDTH: 1,
-  DEBUG_TEXT_COLOR: "cyan",
+  CONNECTOR_COLOR: "#00FFAA",
+  CONNECTOR_WIDTH: 3,
+  LANDMARK_COLOR: "#FF4444",
+  LANDMARK_WIDTH: 2,
+  DEBUG_TEXT_COLOR: "#00FFAA",
 } as const;

@@ -13,9 +13,9 @@ export interface HandFrame {
 }
 
 /**
- * ZenGarden component API
+ * PocketGarden component API
  */
-export interface ZenGardenHandle {
+export interface PocketGardenHandle {
   updateHandFrame: (frame: HandFrame) => void;
 }
 

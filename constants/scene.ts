@@ -10,11 +10,12 @@ export const SCENE_CONFIG = {
 } as const;
 
 export const CAMERA_CONFIG = {
-  FOV: 45,
+  FOV: 50,
   NEAR: 0.1,
   FAR: 100,
-  POSITION: new THREE.Vector3(0, 4, 8),
-  LOOK_AT: new THREE.Vector3(0, 0, 0),
+  // Camera positioned behind the garden, lower angle for immersive view
+  POSITION: new THREE.Vector3(0, 2.5, -7),
+  LOOK_AT: new THREE.Vector3(0, 0, 1),
 } as const;
 
 export const RENDERER_CONFIG = {

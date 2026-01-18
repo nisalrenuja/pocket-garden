@@ -104,3 +104,35 @@ export function createTrailLine(): THREE.Line {
   });
   return new THREE.Line(geometry, material);
 }
+
+// Hand cursor indicator
+export function createHandCursor(): THREE.Group {
+  const group = new THREE.Group();
+
+  // Outer ring
+  const ringGeometry = new THREE.RingGeometry(0.15, 0.2, 32);
+  const ringMaterial = new THREE.MeshBasicMaterial({
+    color: 0x00ffaa,
+    transparent: true,
+    opacity: 0.8,
+    side: THREE.DoubleSide,
+  });
+  const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+  ring.rotation.x = -Math.PI / 2;
+  group.add(ring);
+
+  // Center dot
+  const dotGeometry = new THREE.CircleGeometry(0.05, 16);
+  const dotMaterial = new THREE.MeshBasicMaterial({
+    color: 0x00ffaa,
+    transparent: true,
+    opacity: 0.9,
+    side: THREE.DoubleSide,
+  });
+  const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+  dot.rotation.x = -Math.PI / 2;
+  group.add(dot);
+
+  group.visible = true;
+  return group;
+}

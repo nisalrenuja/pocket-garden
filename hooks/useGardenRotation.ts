@@ -16,9 +16,10 @@ export function useGardenRotation(
     const gardenGroup = sceneObjectsRef.current.gardenGroup;
     if (!gardenGroup) return;
 
-    const isBraking = frame.fist && frame.y >= GESTURE_CONFIG.BRAKE_Y_THRESHOLD;
+    // Don't rotate when making a fist (controlling time)
+    const isControllingTime = frame.fist;
 
-    if (!isBraking && Math.abs(frame.roll) > GESTURE_CONFIG.ROTATION_DEADZONE) {
+    if (!isControllingTime && Math.abs(frame.roll) > GESTURE_CONFIG.ROTATION_DEADZONE) {
       targetRotationRef.current += frame.roll * GESTURE_CONFIG.ROTATION_SPEED;
     }
 

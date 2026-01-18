@@ -23,7 +23,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Zen Garden Error:', error, errorInfo);
+    console.error('Pocket Garden Error:', error, errorInfo);
   }
 
   render() {

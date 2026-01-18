@@ -4,11 +4,13 @@ export function getNormalizedDeviceCoords(
   x: number,
   y: number
 ): THREE.Vector2 {
+  // Convert hand position (0-1) to NDC (-1 to 1)
+  // Camera is behind the garden, so no X flip needed
+  // The mirrored video and behind-camera view align naturally
   const ndc = new THREE.Vector2(
     (x * 2) - 1,
     -((y * 2) - 1)
   );
-  ndc.x = -ndc.x; // Flip X for mirror effect
   return ndc;
 }
 

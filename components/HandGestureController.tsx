@@ -155,19 +155,33 @@ export default function HandGestureController({ onHandFrame }: HandGestureContro
           peace,
         });
 
-        canvasCtx.fillStyle = DRAWING_STYLES.DEBUG_TEXT_COLOR;
-        canvasCtx.fillText(`Roll: ${rollVal.toFixed(2)}`, 10, 20);
-        canvasCtx.fillText(`Pinch: ${pinch}`, 10, 40);
-        canvasCtx.fillText(`Fist: ${fist}`, 10, 60);
-        canvasCtx.fillText(`Peace: ${peace}`, 10, 80);
+        // Update debug panel
+        const debugEl = document.getElementById('gesture-debug');
+        if (debugEl) {
+          const activeGestures = [];
+          if (pinch) activeGestures.push('Pinch (Grab)');
+          if (fist) {
+            const timePos = y < 0.5 ? 'Day' : 'Night';
+            activeGestures.push(`Fist (${timePos})`);
+          }
+          if (peace) activeGestures.push('Peace (Rake)');
+          if (!fist && Math.abs(rollVal) > 0.1) activeGestures.push(`Tilt: ${rollVal > 0 ? 'Right' : 'Left'}`);
+
+          debugEl.innerHTML = activeGestures.length > 0
+            ? activeGestures.join(' | ')
+            : 'Open hand to rotate';
+        }
       } else {
         // No hand detected - check if we should reset state
         const timeSinceHandSeen = startTimeMs - lastHandSeenRef.current;
         if (handPresentRef.current && timeSinceHandSeen > HAND_LOST_TIMEOUT_MS) {
           handPresentRef.current = false;
           onHandFrame(NEUTRAL_FRAME);
-          canvasCtx.fillStyle = DRAWING_STYLES.DEBUG_TEXT_COLOR;
-          canvasCtx.fillText("No hand detected", 10, 20);
+          // Update debug panel
+          const debugEl = document.getElementById('gesture-debug');
+          if (debugEl) {
+            debugEl.innerHTML = 'Show your hand to start';
+          }
         }
       }
     }
@@ -176,24 +190,34 @@ export default function HandGestureController({ onHandFrame }: HandGestureContro
   };
 
   return (
-    <div className="fixed bottom-5 right-5 w-48 h-36 bg-black/20 backdrop-blur-md rounded-xl overflow-hidden border border-white/20 shadow-2xl z-50">
-      {!isLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center text-white text-xs">
-          Loading AI...
+    <>
+      {/* Webcam preview in bottom-right corner */}
+      <div className="fixed bottom-5 right-5 w-64 h-48 bg-black/20 backdrop-blur-md rounded-xl overflow-hidden border border-white/20 shadow-2xl z-50">
+        {!isLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center text-white text-xs">
+            Loading AI...
+          </div>
+        )}
+        <video
+          ref={videoRef}
+          className="absolute inset-0 w-full h-full object-cover opacity-50 -scale-x-100"
+          autoPlay
+          playsInline
+        />
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full object-cover -scale-x-100"
+          width={VIDEO_CONFIG.CANVAS_WIDTH}
+          height={VIDEO_CONFIG.CANVAS_HEIGHT}
+        />
+      </div>
+      {/* Gesture status panel */}
+      {/* <div className="fixed top-4 left-4 bg-black/50 backdrop-blur-sm rounded-lg px-3 py-2 text-white text-xs z-50 pointer-events-none">
+        <div className="font-semibold mb-1">Gesture Status</div>
+        <div id="gesture-debug" className="opacity-80">
+          Show your hand to start
         </div>
-      )}
-      <video
-        ref={videoRef}
-        className="absolute inset-0 w-full h-full object-cover opacity-50 -scale-x-100"
-        autoPlay
-        playsInline
-      />
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 w-full h-full object-cover -scale-x-100"
-        width={VIDEO_CONFIG.CANVAS_WIDTH}
-        height={VIDEO_CONFIG.CANVAS_HEIGHT}
-      />
-    </div>
+      </div> */}
+    </>
   );
 }

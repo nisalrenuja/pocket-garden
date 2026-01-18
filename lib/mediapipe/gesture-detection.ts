@@ -7,7 +7,8 @@ export function calculateRoll(landmarks: Landmark[]): number {
   const dx = pinkyMCP.x - indexMCP.x;
   const dy = pinkyMCP.y - indexMCP.y;
   const rollVal = Math.atan2(dy, dx);
-  return Math.max(-1, Math.min(1, rollVal * GESTURE_CONFIG.ROLL_MULTIPLIER));
+  // Invert roll for behind-garden view with mirrored video
+  return Math.max(-1, Math.min(1, -rollVal * GESTURE_CONFIG.ROLL_MULTIPLIER));
 }
 
 export function isFingerExtended(
