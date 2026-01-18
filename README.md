@@ -1,4 +1,4 @@
-# Pocket Pocket Garden 🎋
+# Pocket Garden 🎋
 
 A magical, interactive 3D Pocket Garden simulator that you control with your hands. Built with **Next.js**, **Three.js**, and **MediaPipe** for real-time hand tracking.
 
@@ -9,9 +9,12 @@ A magical, interactive 3D Pocket Garden simulator that you control with your han
 
 - **Interactive 3D World**: A serene environment with sand, stones, a bonsai tree, and dynamic lighting.
 - **Hand Gesture Control**: No mouse or keyboard needed! Use intuitive hand gestures to interact with the garden.
+- **3D Hand Cursor**: Visual feedback showing your hand position in 3D space for precise interaction.
+- **Gesture Debug Display**: Real-time visualization of detected gestures and hand landmarks for easier control.
 - **Real-time Physics & Visuals**:
     - **Day/Night Cycle**: Control the sun and moon position with your movements.
     - **Dynamic Shadows**: high-quality shadows that respond to the light source.
+    - **Animated Stone Dropping**: Smooth physics-based stone placement with realistic dropping animations.
     - **Raking**: Draw patterns in the sand using your fingers.
 - **Webcam Overlay**: See your hand landmarks in real-time for easier control.
 
